@@ -12,6 +12,9 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"os"
+	"os/user"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -31,6 +34,7 @@ import (
 	"github.com/golang-cafe/job-board/internal/template"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
+	"golang.org/x/crypto/acme/autocert"
 
 	"github.com/allegro/bigcache/v3"
 )
@@ -621,7 +625,7 @@ func (s Server) RenderPageForProfileRegistration(w http.ResponseWriter, r *http.
 		"DeveloperMessagesSentLastMonth":     messagesSentLastMonth,
 		"DevelopersRegisteredLastMonth":      devsRegisteredLastMonth,
 		"DeveloperProfilePageViewsLastMonth": devPageViewsLastMonth,
-		"StripePublishableKey": s.GetConfig().StripePublishableKey,
+		"StripePublishableKey":               s.GetConfig().StripePublishableKey,
 		"MonthAndYear":                       time.Now().UTC().Format("January 2006"),
 		"LastDevCreatedAt":                   lastDevUpdatedAt.Format(time.RFC3339),
 		"LastDevCreatedAtHumanized":          humanize.Time(lastDevUpdatedAt),
@@ -1143,17 +1147,44 @@ func (s Server) Redirect(w http.ResponseWriter, r *http.Request, status int, dst
 
 func (s Server) Run() error {
 	addr := fmt.Sprintf(":%s", s.cfg.Port)
-	if s.cfg.Env == "dev" {
-		log.Printf("local env http://localhost:%s", s.cfg.Port)
-		addr = fmt.Sprintf("0.0.0.0:%s", s.cfg.Port)
-	}
-	return http.ListenAndServe(
-		addr,
-		middleware.HTTPSMiddleware(
-			middleware.GzipMiddleware(
+
+	if s.cfg.Env == "prod" {
+		log.Println("Running in production with https")
+
+		domains := []string{s.cfg.SiteHost, fmt.Sprintf("www.%s", s.cfg.SiteHost)}
+		fmt.Printf("Allowing hosts %v\n", domains)
+		// TESTING URL: "https://acme-staging-v02.api.letsencrypt.org/directory",
+		certManager := autocert.Manager{
+			Prompt:     autocert.AcceptTOS,
+			HostPolicy: autocert.HostWhitelist(domains...),
+		}
+
+		dir := cacheDir()
+		if dir != "" {
+			certManager.Cache = autocert.DirCache(dir)
+		}
+
+		server := &http.Server{
+			Addr: addr,
+			Handler: middleware.GzipMiddleware(
 				middleware.LoggingMiddleware(middleware.HeadersMiddleware(s.router, s.cfg.Env)),
 			),
-			s.cfg.Env,
+			TLSConfig: certManager.TLSConfig(),
+		}
+
+		go func() {
+			log.Printf("Running in addr %s", addr)
+			log.Fatal(server.ListenAndServeTLS("", ""))
+		}()
+	}
+
+	log.Printf("local env http://localhost:%s", "80")
+	addr = fmt.Sprintf("0.0.0.0:%s", "80")
+
+	return http.ListenAndServe(
+		addr,
+		middleware.GzipMiddleware(
+			middleware.LoggingMiddleware(middleware.HeadersMiddleware(s.router, s.cfg.Env)),
 		),
 	)
 }
@@ -1206,4 +1237,15 @@ func (s Server) SeenSince(r *http.Request, timeAgo time.Duration) bool {
 
 func (s Server) IsEmail(val string) bool {
 	return s.emailRe.MatchString(val)
+}
+
+// cacheDir makes a consistent cache directory inside /tmp. Returns "" on error.
+func cacheDir() (dir string) {
+	if u, _ := user.Current(); u != nil {
+		dir = filepath.Join(os.TempDir(), "certs", "cache-golang-autocert-"+u.Username)
+		if err := os.MkdirAll(dir, 0700); err == nil {
+			return dir
+		}
+	}
+	return ""
 }

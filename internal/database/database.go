@@ -669,15 +669,15 @@ func IsDevDirectoryPaymentEvent(conn *sql.DB, sessionID string) (bool, error) {
 
 type DevDirectoryPurchaseEvent struct {
 	StripeSessionID string
-	CreatedAt time.Time
-	CompletedAt time.Time
-	ExpiredAt time.Time
-	Email string
-	Amount int64
-	Currency string
-	Description string
-	RecruiterID string
-	Duration int64
+	CreatedAt       time.Time
+	CompletedAt     time.Time
+	ExpiredAt       time.Time
+	Email           string
+	Amount          int64
+	Currency        string
+	Description     string
+	RecruiterID     string
+	Duration        int64
 }
 
 func GetDevDirectoryPurchaseEventBySessionID(conn *sql.DB, sessionID string) (DevDirectoryPurchaseEvent, error) {

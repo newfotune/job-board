@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -26,8 +27,15 @@ import (
 	"github.com/golang-cafe/job-board/internal/user"
 )
 
+var (
+	envFile = flag.String("env", "", "the name of the environment file under the env/ directory")
+)
+
 func main() {
-	cfg, err := config.LoadConfig()
+	flag.Parse()
+
+	log.Printf("Loading env file %s", *envFile)
+	cfg, err := config.LoadConfig(*envFile)
 	if err != nil {
 		log.Fatalf("unable to load config: %+v", err)
 	}

@@ -23,6 +23,7 @@ require (
 	github.com/gorilla/mux v1.7.3
 	github.com/gorilla/sessions v1.2.0
 	github.com/gosimple/slug v1.3.0
+	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/kr/pretty v0.2.1 // indirect
 	github.com/lib/pq v1.10.4
 	github.com/m0sth8/httpmock v0.0.0-20160716183344-e00e64b1d782 // indirect
@@ -39,6 +40,7 @@ require (
 	github.com/snabb/sitemap v0.0.0-20171225173334-36baa8b39ef4
 	github.com/stretchr/testify v1.8.0 // indirect
 	github.com/stripe/stripe-go v62.10.0+incompatible
+	golang.org/x/crypto v0.8.0 // indirect
 	golang.org/x/image v0.5.0 // indirect
 	gopkg.in/russross/blackfriday.v2 v2.0.0
 	gopkg.in/stretchr/testify.v1 v1.2.2 // indirect

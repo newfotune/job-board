@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
 )
 
@@ -69,7 +70,13 @@ type Config struct {
 	URLProtocol              string
 }
 
-func LoadConfig() (Config, error) {
+func LoadConfig(envFile string) (Config, error) {
+	if envFile != "" {
+		err := godotenv.Load(envFile)
+		if err != nil {
+			return Config{}, err
+		}
+	}
 	port := os.Getenv("PORT")
 	if port == "" {
 		return Config{}, fmt.Errorf("PORT cannot be empty")
