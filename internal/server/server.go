@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/gob"
@@ -13,7 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/user"
+	osuser "os/user"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -32,10 +33,14 @@ import (
 	"github.com/golang-cafe/job-board/internal/job"
 	"github.com/golang-cafe/job-board/internal/middleware"
 	"github.com/golang-cafe/job-board/internal/template"
+	"github.com/golang-cafe/job-board/internal/user"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/acme/autocert"
+	"google.golang.org/api/option"
 
+	firebase "firebase.google.com/go"
+	"firebase.google.com/go/auth"
 	"github.com/allegro/bigcache/v3"
 )
 
@@ -46,14 +51,15 @@ const (
 )
 
 type Server struct {
-	cfg          config.Config
-	Conn         *sql.DB
-	router       *mux.Router
-	tmpl         *template.Template
-	emailClient  email.Client
-	SessionStore *sessions.CookieStore
-	bigCache     *bigcache.BigCache
-	emailRe      *regexp.Regexp
+	cfg            config.Config
+	Conn           *sql.DB
+	router         *mux.Router
+	tmpl           *template.Template
+	emailClient    email.Client
+	SessionStore   *sessions.CookieStore
+	bigCache       *bigcache.BigCache
+	emailRe        *regexp.Regexp
+	firebaseClient *auth.Client
 }
 
 func NewServer(
@@ -64,22 +70,40 @@ func NewServer(
 	emailClient email.Client,
 	sessionStore *sessions.CookieStore,
 ) Server {
+	creds := option.WithCredentialsFile(cfg.FirebaseCredentialFile)
+	app, err := firebase.NewApp(context.Background(), nil, creds)
+	if err != nil {
+		panic(err)
+	}
+	c, err := app.Auth(context.Background())
+	if err != nil {
+		panic(err)
+	}
 	bigCache, err := bigcache.NewBigCache(bigcache.DefaultConfig(12 * time.Hour))
 	svr := Server{
-		cfg:          cfg,
-		Conn:         conn,
-		router:       r,
-		tmpl:         t,
-		emailClient:  emailClient,
-		SessionStore: sessionStore,
-		bigCache:     bigCache,
-		emailRe:      regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"),
+		cfg:            cfg,
+		Conn:           conn,
+		router:         r,
+		tmpl:           t,
+		emailClient:    emailClient,
+		SessionStore:   sessionStore,
+		bigCache:       bigCache,
+		emailRe:        regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"),
+		firebaseClient: c,
 	}
 	if err != nil {
 		svr.Log(err, "unable to initialise big cache")
 	}
 
 	return svr
+}
+
+func (s Server) GetAuthClient() *auth.Client {
+	return s.firebaseClient
+}
+
+func (s Server) VerifyUserToken(token string) (*auth.Token, error) {
+	return s.firebaseClient.VerifyIDToken(context.Background(), token)
 }
 
 func (s Server) RegisterRoute(path string, handler func(w http.ResponseWriter, r *http.Request), methods []string) {
@@ -588,7 +612,7 @@ func textifyJobTitles(jobs []*job.JobPost) string {
 	return ""
 }
 
-func (s Server) RenderPageForProfileRegistration(w http.ResponseWriter, r *http.Request, devRepo *developer.Repository, htmlView string) {
+func (s Server) RenderPageForProfileRegistration(w http.ResponseWriter, r *http.Request, devRepo *developer.Repository, htmlView string, data map[string]interface{}) {
 	topDevelopers, err := devRepo.GetTopDevelopers(10)
 	if err != nil {
 		s.Log(err, "unable to get top developers")
@@ -617,19 +641,21 @@ func (s Server) RenderPageForProfileRegistration(w http.ResponseWriter, r *http.
 	if err != nil {
 		s.Log(err, "GetDeveloperProfilePageViewsLastMonth")
 	}
+	if data == nil {
+		data = make(map[string]interface{})
+	}
+	data["TopDevelopers"] = topDevelopers
+	data["TopDeveloperNames"] = textifyGeneric(topDeveloperNames)
+	data["TopDeveloperSkills"] = textifyGeneric(topDeveloperSkills)
+	data["DeveloperMessagesSentLastMonth"] = messagesSentLastMonth
+	data["DevelopersRegisteredLastMonth"] = devsRegisteredLastMonth
+	data["DeveloperProfilePageViewsLastMonth"] = devPageViewsLastMonth
+	data["StripePublishableKey"] = s.GetConfig().StripePublishableKey
+	data["MonthAndYear"] = time.Now().UTC().Format("January 2006")
+	data["LastDevCreatedAt"] = lastDevUpdatedAt.Format(time.RFC3339)
+	data["LastDevCreatedAtHumanized"] = humanize.Time(lastDevUpdatedAt)
 
-	s.Render(r, w, http.StatusOK, htmlView, map[string]interface{}{
-		"TopDevelopers":                      topDevelopers,
-		"TopDeveloperNames":                  textifyGeneric(topDeveloperNames),
-		"TopDeveloperSkills":                 textifyGeneric(topDeveloperSkills),
-		"DeveloperMessagesSentLastMonth":     messagesSentLastMonth,
-		"DevelopersRegisteredLastMonth":      devsRegisteredLastMonth,
-		"DeveloperProfilePageViewsLastMonth": devPageViewsLastMonth,
-		"StripePublishableKey":               s.GetConfig().StripePublishableKey,
-		"MonthAndYear":                       time.Now().UTC().Format("January 2006"),
-		"LastDevCreatedAt":                   lastDevUpdatedAt.Format(time.RFC3339),
-		"LastDevCreatedAtHumanized":          humanize.Time(lastDevUpdatedAt),
-	})
+	s.Render(r, w, http.StatusOK, htmlView, data)
 }
 
 func (s Server) RenderPageForDevelopers(w http.ResponseWriter, r *http.Request, devRepo *developer.Repository, location, tag, page, htmlView string) {
@@ -1075,11 +1101,10 @@ func (s Server) Render(r *http.Request, w http.ResponseWriter, status int, htmlV
 	if data != nil {
 		dataMap = data.(map[string]interface{})
 	}
-	profile, _ := middleware.GetUserFromJWT(r, s.SessionStore, s.GetJWTSigningKey())
-	dataMap["LoggedUser"] = profile
-	if profile != nil {
-		dataMap["IsUserRecruiter"] = profile.IsRecruiter
-		dataMap["IsUserDeveloper"] = profile.IsDeveloper
+	profile, exists := dataMap["LoggedUser"].(*user.User)
+	if exists {
+		dataMap["IsUserRecruiter"] = profile.Type == "jobseeker"
+		dataMap["IsUserDeveloper"] = profile.Type == "workerseeker"
 		dataMap["IsUserAdmin"] = profile.IsAdmin
 	}
 	dataMap["SiteName"] = s.GetConfig().SiteName
@@ -1146,7 +1171,8 @@ func (s Server) Redirect(w http.ResponseWriter, r *http.Request, status int, dst
 }
 
 func (s Server) Run() error {
-	addr := fmt.Sprintf(":%s", s.cfg.Port)
+	httpAddr := fmt.Sprintf(":%s", s.cfg.HttpPort)
+	httpsAddr := fmt.Sprintf(":%s", s.cfg.HttpsPort)
 
 	if s.cfg.Env == "prod" {
 		log.Println("Running in production with https")
@@ -1165,7 +1191,7 @@ func (s Server) Run() error {
 		}
 
 		server := &http.Server{
-			Addr: addr,
+			Addr: httpsAddr,
 			Handler: middleware.GzipMiddleware(
 				middleware.LoggingMiddleware(middleware.HeadersMiddleware(s.router, s.cfg.Env)),
 			),
@@ -1173,16 +1199,16 @@ func (s Server) Run() error {
 		}
 
 		go func() {
-			log.Printf("Running in addr %s", addr)
+			log.Printf("Running in addr %s", httpsAddr)
 			log.Fatal(server.ListenAndServeTLS("", ""))
 		}()
 	}
 
-	log.Printf("local env http://localhost:%s", "80")
-	addr = fmt.Sprintf("0.0.0.0:%s", "80")
+	log.Printf("local env http://0.0.0.0%s", httpAddr)
+	httpAddr = fmt.Sprintf("0.0.0.0%s", httpAddr)
 
 	return http.ListenAndServe(
-		addr,
+		httpAddr,
 		middleware.GzipMiddleware(
 			middleware.LoggingMiddleware(middleware.HeadersMiddleware(s.router, s.cfg.Env)),
 		),
@@ -1241,7 +1267,7 @@ func (s Server) IsEmail(val string) bool {
 
 // cacheDir makes a consistent cache directory inside /tmp. Returns "" on error.
 func cacheDir() (dir string) {
-	if u, _ := user.Current(); u != nil {
+	if u, _ := osuser.Current(); u != nil {
 		dir = filepath.Join(os.TempDir(), "certs", "cache-golang-autocert-"+u.Username)
 		if err := os.MkdirAll(dir, 0700); err == nil {
 			return dir

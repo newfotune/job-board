@@ -870,23 +870,23 @@
 	<section>
 		<article>
 			<p>
-			<h1 style="margin-top:20px;">Start Hiring on the {{ .SiteJobCategory }} Developers Community on {{ .SiteName }}</h1>
+			<h1 style="margin-top:20px;">Start Hiring for {{ .SiteJobCategory }} professionals on {{ .SiteName }}</h1>
 			<div id="switch-profile-type-container">
 				<div id="profile-developer" class="profile-type"
-					style="border-radius: 5px 0 0 5px; border-right: none;"><a href="/Join-{{ .SiteJobCategory }}-Community">I am a developer</a></div>
-				<div id="profile-recruiter" class="active-profile profile-type" style="border-radius: 0 5px 5px 0; border-left: none;"><a style="color:#fff;" href="/Hire-From-{{ .SiteJobCategory }}-Community">I am a recruiter</a></div>
+					style="border-radius: 5px 0 0 5px; border-right: none;"><a href="/Join-{{ .SiteJobCategory }}-Community">Jobseekers</a></div>
+				<div id="profile-recruiter" class="active-profile profile-type" style="border-radius: 0 5px 5px 0; border-left: none;"><a style="color:#fff;" href="/Hire-From-{{ .SiteJobCategory }}-Community">Employers</a></div>
 			</div>
 			<p style="font-size: 18px;">
-				Start sourcing and hire great developers on {{ .SiteName }}. There are hundreds
-				of <a href="/{{ .SiteJobCategoryURLEncoded }}-Developers">{{ .SiteJobCategory }} developers</a> from all over the world on the {{ .SiteName }}
-				Community.<br><br> Developers like <b>{{ .TopDeveloperNames }}</b> experienced in <b>{{ .TopDeveloperSkills }}</b> have joined {{ .SiteName }} recently.
+				Start sourcing and hiring great dental professionals on {{ .SiteName }}. Join hundreds of dental practices to find your next great hire from hundreds
+				of <a href="/{{ .SiteJobCategoryURLEncoded }}-Developers">{{ .SiteJobCategory }} professionals</a> from all over the country on the {{ .SiteName }}
+				Community.<!--<br><br> Developers like <b>{{ .TopDeveloperNames }}</b> experienced in <b>{{ .TopDeveloperSkills }}</b> have joined {{ .SiteName }} recently.-->
 			</p>
-			<div style="margin-bottom: 20px; text-align: center;">
+			<!--<div style="margin-bottom: 20px; text-align: center;">
 				{{ range $i, $j := .TopDevelopers }}
 				<img width="50" height="50" style="margin-left:-20px;border-radius: 50px; border: 1px solid #aaa;"
 					src="/x/s/m/{{ .ImageID }}?w=50&h=50" title="{{ .Name }}" alt="{{ .Name }}">
 				{{ end }}
-			</div>
+			</div>-->
 			<ul>
 				{{ if .DeveloperMessagesSentLastMonth }}
 				<li><b>{{ .DeveloperMessagesSentLastMonth }}</b> direct messages sent by companies to developers on {{ .SiteName }} in the last 30 days</li>
@@ -899,19 +899,21 @@
 				<li><b>{{ humannumber .DeveloperProfilePageViewsLastMonth }}</b> developer profiles page views in the
 					last 30 days</li>
 				{{ end }}
-                <li>Get access to our <a href="/{{ .SiteJobCategoryURLEncoded }}-Developer-Salary-Remote" target="_blank">Salary Explorer</a></li>
-				<li>Last developer joined <b><time datetime="{{ .LastDevCreatedAt }}">{{ .LastDevCreatedAtHumanized }}</time></b></li>
+				<li>Get access to hundreds of <a href="/{{ .SiteJobCategoryURLEncoded }}-Developer-Salary-Remote" target="_blank">hygienists, dental assistants, dentists and more</a></li>
+				<li>Automatic license verification <a href="/{{ .SiteJobCategoryURLEncoded }}-Developer-Salary-Remote" target="_blank"></a></li>
+                <li>In built booking and tracking <a href="/{{ .SiteJobCategoryURLEncoded }}-Developer-Salary-Remote" target="_blank"></a></li>
 			</ul>
 
 			<h3>Start Hiring</h3>
-			<input type="text" name="full-name" id="full-name" placeholder="Full Name" style="width: 100%;">
+			<!--<input type="text" name="full-name" id="full-name" placeholder="Full Name" style="width: 100%;">-->
 			<input type="hidden" id="detected-location-id" name="detected-location-id">
 			<input type="url" class="recruiter-only" name="company-url" id="company-url" placeholder="Company Website"
 				style="width: 100%;">
 			<input type="hidden" name="profile-type" id="profile-type" value="recruiter">
 			<input type="email" name="email" id="email" placeholder="Company Email" style="width: 100%;">
 			<br>
-			<h4>Plan</h4>
+			<input type="submit" id="submit" value="Next >" onclick="post(6);" style="width:100%;">
+			<!--<h4>Plan</h4>
 			<div style="margin-bottom:20px;">
 			Please choose one of the options below. You will only be billed once. This is not a subscription. Consider choosing a longer plan to lock in a lower price.
 			</div>
@@ -966,10 +968,10 @@
                             <li>Priority 24/7 email customer support</li>
                         </ul>
                     </article>
-                </div>
-                <div class="clearfix"></div>
+                </div>-->
+                <!--<div class="clearfix"></div>
 		<p style="line-height:1rem;float:left;width:50%;text-align:left;font-size:9pt;margin-bottom:0px;margin-top:10px;">This is not a subscription. You will only be charged once. By continuing you accept the <a href="/terms-of-service" target="_blank">Terms of Service</a></p>
-                <div class="clearfix"></div>
+                <div class="clearfix"></div>-->
             <br>
 		</article>
 	</section>
@@ -1030,26 +1032,28 @@
 			return !isThere;
 		};
 		function post(planDuration) {
-		    if (planDuration != 3 && planDuration != 6 && planDuration != 12) {
-				alert("Invalid plan duration, please specify 3, 6 or 12 months.");
-			}
-            var fullName = document.getElementById("full-name").value;
+		    // if (planDuration != 3 && planDuration != 6 && planDuration != 12) {
+			// 	alert("Invalid plan duration, please specify 3, 6 or 12 months.");
+			// }
+            var fullName = ''; //document.getElementById("full-name").value;
             var companyUrl = document.getElementById("company-url").value;
             var email = document.getElementById("email").value;
             var itemPrice = 0;
-            if (planDuration == 3) {
-              itemPrice = parseInt(document.getElementById("plan-1-item-price").value);
-            }
-            if (planDuration == 6) {
-              itemPrice = parseInt(document.getElementById("plan-2-item-price").value);
-            }
-            if (planDuration == 12) {
-              itemPrice = parseInt(document.getElementById("plan-3-item-price").value);
-            }
-            if (empty(fullName, email)) {
-                alert('You must fill all the mandatory fields (Full name, Email) in order to join the community');
-                return;
-            }
+            // if (planDuration == 3) {
+            //   itemPrice = parseInt(document.getElementById("plan-1-item-price").value);
+            // }
+            // if (planDuration == 6) {
+            //   itemPrice = parseInt(document.getElementById("plan-2-item-price").value);
+            // }
+            // if (planDuration == 12) {
+            //   itemPrice = parseInt(document.getElementById("plan-3-item-price").value);
+            // }
+            // if (empty(fullName, email)) {
+            //     alert('You must fill all the mandatory fields (Full name, Email) in order to join the community');
+            //     return;
+            // }
+			console.log('email=', email)
+			console.log('companyUrl=', companyUrl )
             if (!isEmail(email)) {
                 alert('Your email is not valid');
                 return;
@@ -1075,19 +1079,20 @@
                 payload,
                 function (success, body, statusCode) {
                     if (success) {
-                      gtag('event', 'conversion', {'send_to': 'AW-10970937211/yqjWCKDl64sYEPvurO8o'});
+                      //gtag('event', 'conversion', {'send_to': 'AW-10970937211/yqjWCKDl64sYEPvurO8o'});
                       try {
                           var res = JSON.parse(body);
                           console.log(res);
-                          stripe.redirectToCheckout({
-                              sessionId: res.s_id
-                          }).then(function (result) {
-                              document.getElementById("spinner-0").style.display = "none";
-                              if (result.error) {
-                                  console.log(result.error);
-                                  alert('Oops, there was a problem with your payment. Please try again later');
-                              }
-                          });
+                        //   stripe.redirectToCheckout({
+                        //       sessionId: res.s_id
+                        //   }).then(function (result) {
+                        //       document.getElementById("spinner-0").style.display = "none";
+                        //       if (result.error) {
+                        //           console.log(result.error);
+                        //           alert('Oops, there was a problem with your payment. Please try again later');
+                        //       }
+                        //   });
+						window.location.href = '/profile-home'
                       } catch (err) {
                           document.getElementById("spinner-0").style.display = "none";
                           console.log(err);

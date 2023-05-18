@@ -867,7 +867,7 @@
         }
 	</style>
 	<meta charset="utf-8">
-	<title>Join the {{ .SiteJobCategory }} Developers Community | {{ .SiteName }}</title>
+	<title>Join other {{ .SiteJobCategory }} professionals | {{ .SiteName }}</title>
 	<meta name="title" content="Join the {{ .SiteJobCategory }} Developers Community | {{ .SiteName }}">
 	<meta name="keywords"
 		content="{{ .SiteJobCategory }}, {{ .SiteJobCategory }} jobs, {{ .SiteJobCategory }} programming language, hire {{ .SiteJobCategory }} developers, hire {{ .SiteJobCategory }} developers, hire go engineers">
@@ -923,24 +923,25 @@
 	<section>
 		<article>
 			<p>
-			<h1 style="margin-top:20px;">Join the {{ .SiteJobCategory }} Developers Community on {{ .SiteName }}</h1>
+			<h1 style="margin-top:20px;">Join other {{ .SiteJobCategory }} professionals on {{ .SiteName }}</h1>
 			<div id="switch-profile-type-container">
 				<div id="profile-developer" class="active-profile profile-type"
-					style="border-radius: 5px 0 0 5px; border-right: none;"><a style="color: #fff;" href="/Join-{{ .SiteJobCategory }}-Community">I am a developer</a></div>
-				<div id="profile-recruiter" class="profile-type" style="border-radius: 0 5px 5px 0; border-left: none;"><a href="/Hire-From-{{ .SiteJobCategory }}-Community">I am a recruiter</a></div>
+					style="border-radius: 5px 0 0 5px; border-right: none;"><a style="color: #fff;" href="/Join-{{ .SiteJobCategory }}-Community">Jobseekers</a></div>
+				<div id="profile-recruiter" class="profile-type" style="border-radius: 0 5px 5px 0; border-left: none;"><a href="/Hire-From-{{ .SiteJobCategory }}-Community">Employers</a></div>
 			</div>
 			<p style="font-size: 18px;">
-				Register your profile on {{ .SiteName }}. There are <a
+				Create your profile on {{ .SiteName }} and find your next job. There are <a
 					href="/Companies-Using-{{ .SiteJobCategoryURLEncoded }}" target="_blank">hundreds of companies</a>
-				and <a href="/{{ .SiteJobCategoryURLEncoded }}-Developers">{{ .SiteJobCategory }} developers</a> from all over the world on the {{ .SiteName }}
-				Community.<br><br> Developers like <b>{{ .TopDeveloperNames }}</b> experienced in <b>{{ .TopDeveloperSkills }}</b> have joined {{ .SiteName }} recently.
+				from all over the country looking for candidates like you on the {{ .SiteName }}
+				Community.
+				<!-- <br><br> Developers like <b>{{ .TopDeveloperNames }}</b> experienced in <b>{{ .TopDeveloperSkills }}</b> have joined {{ .SiteName }} recently.-->
 			</p>
-			<div style="margin-bottom: 20px; text-align: center;">
+			<!--<div style="margin-bottom: 20px; text-align: center;">
 				{{ range $i, $j := .TopDevelopers }}
 				<img width="50" height="50" style="margin-left:-20px;border-radius: 50px; border: 1px solid #aaa;"
 					src="/x/s/m/{{ .ImageID }}?w=50&h=50" title="{{ .Name }}" alt="{{ .Name }}">
 				{{ end }}
-			</div>
+			</div>-->
 			<ul>
 				{{ if .DeveloperMessagesSentLastMonth }}
 				<li><b>{{ .DeveloperMessagesSentLastMonth }}</b> direct messages sent by companies to developers on {{ .SiteName }} in the last 30 days</li>
@@ -953,8 +954,8 @@
 				<li><b>{{ humannumber .DeveloperProfilePageViewsLastMonth }}</b> developer profiles page views in the
 					last 30 days</li>
 				{{ end }}
-				<li>Get access to our <a href="/{{ .SiteJobCategoryURLEncoded }}-Developer-Salary-Remote" target="_blank">Salary Explorer</a></li>
-				<li>Last developer joined <b><time datetime="{{ .LastDevCreatedAt }}">{{ .LastDevCreatedAtHumanized }}</time></b></li>
+				<li>Know your worth, get access to our salary explorer <a href="/{{ .SiteJobCategoryURLEncoded }}-Developer-Salary-Remote" target="_blank">pay explorer</a></li>
+				<li>Get access to jobs all over the country including in your city</li>
 			</ul>
 
 			<h3>Join the community</h3>

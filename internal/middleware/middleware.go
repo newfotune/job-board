@@ -1,12 +1,15 @@
 package middleware
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
+	"firebase.google.com/go/auth"
 	"github.com/golang-cafe/job-board/internal/gzip"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -118,30 +121,28 @@ func MachineAuthenticatedMiddleware(machineToken string, next http.HandlerFunc) 
 	})
 }
 
-func UserAuthenticatedMiddleware(sessionStore *sessions.CookieStore, jwtKey []byte, next http.HandlerFunc) http.HandlerFunc {
+func UserAuthenticatedMiddleware(sessionStore *sessions.CookieStore, authClient *auth.Client, next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sess, err := sessionStore.Get(r, "____gc")
 		if err != nil {
 			http.Redirect(w, r, "/auth", http.StatusUnauthorized)
 			return
 		}
+
 		tk, ok := sess.Values["jwt"].(string)
 		if !ok {
 			http.Redirect(w, r, "/auth", http.StatusUnauthorized)
 			return
 		}
-		token, err := jwt.ParseWithClaims(tk, &UserJWT{}, func(token *jwt.Token) (interface{}, error) {
-			return jwtKey, nil
-		})
-		if !token.Valid {
+
+		authToken, err := authClient.VerifyIDToken(context.Background(), tk)
+		if err != nil {
+			fmt.Println(err)
 			http.Redirect(w, r, "/auth", http.StatusUnauthorized)
 			return
 		}
-		claims, ok := token.Claims.(*UserJWT)
-		if !ok || claims.Email == "" {
-			http.Redirect(w, r, "/auth", http.StatusUnauthorized)
-			return
-		}
+		//TODO: Use predefined context key.
+		r = r.WithContext(context.WithValue(r.Context(), "authToken", authToken))
 		next(w, r)
 	})
 }

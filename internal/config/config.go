@@ -304,10 +304,10 @@ func LoadConfig(envFile string) (Config, error) {
 	if devDirectoryPlanID3PriceStr == "" {
 		return Config{}, fmt.Errorf("DEV_DIRECTORY_PLAN_ID_3_PRICE cannot be empty")
 	}
-	// firebaseFileLocation := os.Getenv("FIREBASE_CONFIG_FILE")
-	// if firebaseFileLocation == "" {
-	// 	return Config{}, fmt.Errorf("FIREBASE_CONFIG_FILE cannot be empty")
-	// }
+	firebaseFileLocation := os.Getenv("FIREBASE_CONFIG_FILE")
+	if firebaseFileLocation == "" {
+		return Config{}, fmt.Errorf("FIREBASE_CONFIG_FILE cannot be empty")
+	}
 	// firebaseApiKey := os.Getenv("FIREBASE_API_KEY")
 	// if firebaseApiKey == "" {
 	// 	return Config{}, fmt.Errorf("FIREBASE_API_KEY cannot be empty")
@@ -405,7 +405,7 @@ func LoadConfig(envFile string) (Config, error) {
 		DevelopersBannerLink:     developersBannerLink,
 		DevelopersBannerText:     developersBannerText,
 		URLProtocol:              urlProtocol,
-		// FirebaseCredentialFile:    firebaseFileLocation,
+		FirebaseCredentialFile:   firebaseFileLocation,
 		// FirebaseApiKey:            firebaseApiKey,
 		// FirebaseAuthDomain:        firebaseAuthDomain,
 		// FirebaseProjectId:         firebaseProjectId,

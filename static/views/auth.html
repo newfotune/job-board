@@ -805,12 +805,23 @@
         <article>
             <h1 style="margin-top:0;">Login to your {{ .SiteName }} account</h1>
             <p style="margin-top: 20px;">Use your account email to receive a sign-in token. If you haven't registered already you can <a href="/Join-{{ .SiteJobCategory }}-Community">sign-up for free</a></p>
-                <div style="width: 100%;">
-                <input type="email" name="email" id="email" {{ if .DefaultEmail }}value="{{ .DefaultEmail }}"{{ end }} class="email-subscribe-item"
-                    style="border: 1px solid #d9d9d9;margin:10px auto;display:block;width:300px;" placeholder="Email Address">
-                <div style="width:100%;">
-                <input type="submit" onclick="auth()" class="email-subscribe-item" value="Send Magic Link"
-                    style="margin:0 auto;display:block;width:300px;"></duv>
+            <div style="width: 100%;">
+            <input type="email" name="email" id="email" {{ if .DefaultEmail }}value="{{ .DefaultEmail }}"{{ end }} class="email-subscribe-item"
+                style="border: 1px solid #d9d9d9;margin:10px auto;display:block;width:300px;" placeholder="Email Address">
+            </div>
+            <div style="width:100%;">
+                <input type="password" name="password" id="password" placeholder="password" style="border: 1px solid #d9d9d9;margin:10px auto;display:block;width:300px;">
+            </div>
+            <div style="width:100%;">
+                <input type="submit" id="loginBtn" value="Sign in"
+                    style="border: 1px solid #d9d9d9;margin:10px auto;display:block;width:300px;">
+            </div>
+            <div style="width:100%;">
+
+                <input type="submit" id="magicBtn" value="magic link (no password)"
+                    style="margin:10px auto;display:block;width:300px;">
+            </div>
+            <br>
         </article>
     </section>
     <footer>
@@ -831,7 +842,31 @@
             </ul>
         </nav>
     </footer>
-    <script>
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+		import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+		import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics.js";
+		import { getAuth, sendSignInLinkToEmail, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+		// TODO: Add SDKs for Firebase products that you want to use
+		// https://firebase.google.com/docs/web/setup#available-libraries
+
+		// Your web app's Firebase configuration
+		// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+		const firebaseConfig = {
+			apiKey: "AIzaSyA22SxY5V3MExVsAB6m8Tky6-gM2L54sUs",
+			authDomain: "getdentaljob-prod.firebaseapp.com",
+			projectId: "getdentaljob-prod",
+			storageBucket: "getdentaljob-prod.appspot.com",
+			messagingSenderId: "119037252504",
+			appId: "1:119037252504:web:c9f8ca012e5822017851ed",
+			measurementId: "G-NP9QEH8J11"
+		};
+
+		// Initialize Firebase
+		const app = initializeApp(firebaseConfig);
+		const analytics = getAnalytics(app);
+		console.log('initialized firebase')
+		
         function isEmail(email) {
             var re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
             return re.test(email);
@@ -843,9 +878,9 @@
             }
             return !isThere;
         };
-        var post = function (body, cb) {
+        var post = function (url, body, cb) {
             var xhr = new XMLHttpRequest();
-            xhr.open('POST', '/x/auth/link', true);
+            xhr.open('POST', url, true);
             xhr.setRequestHeader('Content-Type', 'application/json');
             xhr.send(JSON.stringify(body));
             xhr.onreadystatechange = function () {
@@ -854,24 +889,105 @@
                 }
             }
         };
-        function auth() {
-            document.getElementById("spinner-0").style.display = "block";
+        function getEmailAndPassword(validatePassword) {
             var email = document.getElementById("email").value;
             if (empty(email) || !isEmail(email)) {
                 alert("Please provide a valid email address");
-                document.getElementById("spinner-0").style.display = "none";
                 return;
             }
-            post({ email: email }, function (success) {
-                document.getElementById("spinner-0").style.display = "none";
-                if (success) {
-                    alert("Check your inbox");
-                    document.getElementById("email").value = "";
-                } else {
-                    alert('Oops, this email looks incorrect');
-                }
-            });
+            var password = document.getElementById("password").value;
+            if (validatePassword && empty(password)) {
+                alert("Invalid password. Password is empty");
+                return;
+            }
+
+            return {email: email, password: password}
         }
+        function goToUrl(url) {
+            window.location.href = url
+        }
+        function login() {
+            let {email, password} = getEmailAndPassword(true)
+            document.getElementById("spinner-0").style.display = "block";
+            console.log(email, password)
+            const auth = getAuth()
+            signInWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    // Signed in 
+                    const user = userCredential.user;
+                    //TODO: Store access token in local storage
+                    //TODO: Redirect to home page
+                    const payload = {
+						uid: user.uid, // string
+						email: user.email, // string
+						email_verified: user.emailVerified, // bool
+						access_token: user.stsTokenManager.accessToken, // string
+						expiration_time: user.stsTokenManager.expirationTime, // unix seconds, number
+						created_at: parseInt(user.metadata.createdAt), // string 
+					}
+                    post('/x/signin', payload, function(success) {
+                        if (success) {
+                            window.location.href='/profile/home'
+                        } else {
+                            alert('error signing in, please contact help@gendentaljob.com')
+                        }
+                    })
+                })
+                .catch((error) => {
+                    const errorCode = error.code;
+                    const errorMessage = error.message;
+	                alert('Error. if this problem persists, please contact us at help@gendentaljob.com.')
+                })
+                .finally(() => {
+                    document.getElementById("spinner-0").style.display = "none";
+                });
+        }
+        function useMagicLink() {
+            let {email, password} = getEmailAndPassword(false)
+            document.getElementById("spinner-0").style.display = "block";
+            console.log(email, password)
+            const actionCodeSettings = {
+                // URL you want to redirect back to. The domain (www.example.com) for this
+                // URL must be in the authorized domains list in the Firebase Console.
+                url: 'https://getdentaljob.com/finishSignUp?cartId=1234',
+                // This must be true.
+                handleCodeInApp: true,
+                dynamicLinkDomain: 'example.page.link'
+            };
+            sendSignInLinkToEmail(auth, email, actionCodeSettings)
+                .then(() => {
+                    // The link was successfully sent. Inform the user.
+                    // Save the email locally so you don't need to ask the user for it again
+                    // if they open the link on the same device.
+                    // window.localStorage.setItem('emailForSignIn', email);
+                    // ...
+                    alert('A link has been sent to your email, click on that link to login.')
+                })
+                .catch((error) => {
+                    const errorCode = error.code;
+                    const errorMessage = error.message;
+                    // ...
+                });
+        }
+        // function auth() {
+        //     post({ email: email }, function (success) {
+        //         document.getElementById("spinner-0").style.display = "none";
+        //         if (success) {
+        //             alert("Check your inbox");
+        //             document.getElementById("email").value = "";
+        //         } else {
+        //             alert('Oops, this email looks incorrect');
+        //         }
+        //     });
+        // };
+        document.getElementById('loginBtn').addEventListener('click', (e) => {
+            e.preventDefault()
+            login()
+        })
+        document.getElementById('magicBtn').addEventListener('click', (e) => {
+            e.preventDefault()
+            useMagicLink()
+        })
         document
             .getElementById('email')
             .addEventListener('keyup', function (event) {

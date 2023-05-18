@@ -82,7 +82,7 @@ func main() {
 		cfg,
 		conn,
 		mux.NewRouter(),
-		template.NewTemplate(),
+		template.NewTemplate(cfg.Env),
 		emailClient,
 		sessionStore,
 	)
@@ -157,7 +157,7 @@ func main() {
 		[]string{"GET"},
 	)
 	svr.RegisterRoute("/x/srp", handler.SaveRecruiterProfileHandler(svr, recRepo, userRepo, paymentRepo), []string{"POST"})
-	svr.RegisterRoute("/x/sdp", handler.SaveDeveloperProfileHandler(svr, devRepo, userRepo), []string{"POST"})
+	svr.RegisterRoute("/x/sdp", handler.CreateDeveloperAccount(svr, userRepo), []string{"POST"})
 	svr.RegisterRoute("/x/sdm", handler.SaveDeveloperMetadataHandler(svr, devRepo), []string{"POST"})
 	svr.RegisterRoute("/x/udp", handler.UpdateDeveloperProfileHandler(svr, devRepo), []string{"POST"})
 	svr.RegisterRoute("/x/udm", handler.UpdateDeveloperMetadataHandler(svr, devRepo), []string{"POST"})
@@ -168,7 +168,7 @@ func main() {
 	svr.RegisterRoute("/x/auth/message/{id}", handler.DeliverMessageDeveloperProfileHandler(svr, devRepo), []string{"GET"})
 
 	// blog
-	svr.RegisterRoute("/profile/home", handler.ProfileHomepageHandler(svr, devRepo, recRepo), []string{"GET"})
+	svr.RegisterRoute("/profile/home", handler.ProfileHomepageHandler(svr, devRepo, recRepo, userRepo), []string{"GET"})
 	svr.RegisterRoute("/profile/{id}/edit", handler.EditProfileHandler(svr, devRepo, recRepo), []string{"GET"})
 	svr.RegisterRoute("/profile/blog/create", handler.CreateDraftBlogPostHandler(svr, blogRepo), []string{"GET"})
 	svr.RegisterRoute("/profile/blog/list", handler.GetUserBlogPostsHandler(svr, blogRepo), []string{"GET"})
@@ -267,6 +267,7 @@ func main() {
 
 	// sign on email link
 	svr.RegisterRoute("/x/auth/link", handler.RequestTokenSignOn(svr, userRepo), []string{"POST"})
+	svr.RegisterRoute("/x/signin", handler.FirebaseSignin(svr, userRepo), []string{"POST"})
 	svr.RegisterRoute("/x/auth/{token}", handler.VerifyTokenSignOn(svr, userRepo, devRepo, recRepo, cfg.AdminEmail), []string{"GET"})
 
 	//
