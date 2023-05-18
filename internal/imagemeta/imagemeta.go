@@ -8,9 +8,8 @@ import (
 	"io"
 	"path/filepath"
 
-	"github.com/golang-cafe/job-board/internal/job"
 	"github.com/fogleman/gg"
-	"github.com/pkg/errors"
+	"github.com/golang-cafe/job-board/internal/job"
 )
 
 const (
@@ -23,7 +22,7 @@ func GenerateImageForJob(jobPost job.JobPost) (io.ReadWriter, error) {
 	backgroundImage, err := gg.LoadImage(backgroundImageFilename)
 	w := bytes.NewBuffer([]byte{})
 	if err != nil {
-		return w, errors.Wrap(err, "load background image")
+		return w, fmt.Errorf("load background image. %w", err)
 	}
 	// draw background image
 	dc.DrawImage(backgroundImage, 0, 0)
@@ -38,7 +37,7 @@ func GenerateImageForJob(jobPost job.JobPost) (io.ReadWriter, error) {
 	}
 	fontPath := filepath.Join("static", "assets", "fonts", "verdana", "verdana.ttf")
 	if err := dc.LoadFontFace(fontPath, 60); err != nil {
-		return w, errors.Wrap(err, "load Courier_Prime for job link")
+		return w, fmt.Errorf("load Courier_Prime for job link. %w", err)
 	}
 	textRightMargin := 80.0
 	textTopMargin := 90.0
