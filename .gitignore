@@ -4,6 +4,7 @@
 *.swp
 *.env
 *.service
+*firebase-adminsdk*.json
 *.txt
 !setup-database.sh
 !run-local-webserver.sh
