@@ -8,66 +8,74 @@ import (
 	"strings"
 
 	"github.com/joho/godotenv"
-	"github.com/pkg/errors"
 )
 
 type Config struct {
-	Port                     string
-	DatabaseUser             string
-	DatabasePassword         string
-	DatabaseHost             string
-	DatabasePort             string
-	DatabaseName             string
-	DatabaseSSLMode          string
-	StripeKey                string // stripe secret API Key
-	StripeEndpointSecret     string // stripe endpoint webhook secret token
-	StripePublishableKey     string // stripe publishable API key
-	EmailAPIKey              string // sparkpost email API Key
-	Email2APIKey             string // sparkpost email API Key
-	AdminEmail               string // used to log on to the management dashboard
-	SupportEmail             string // displayed on the site for support queries
-	NoReplyEmail             string // used for transactional emails
-	SessionKey               []byte
-	JwtSigningKey            []byte
-	Env                      string // either prod or dev, will disable https and few other bits
-	JobsPerPage              int    // configures how many jobs are shown per page result
-	DevelopersPerPage        int    // configures how many dev profiles are shown per page result
-	CompaniesPerPage         int    // configures how many companies are shown per page result
-	TwitterJobsToPost        int    // max number of jobs to post each day
-	TwitterAccessToken       string
-	TwitterAccessTokenSecret string
-	TwitterClientKey         string
-	TwitterClientSecret      string
-	NewsletterJobsToSend     int
-	CloudflareAPIToken       string
-	CloudflareZoneTag        string
-	CloudflareAPIEndpoint    string
-	MachineToken             string
-	TelegramAPIToken         string   // Telegram API Token used to integrate with site's Telegram channel
-	TelegramChannelID        int64    // Telegram Channel ID used to integrate with site's Telegram channel
-	FXAPIKey                 string   // FX rate api API Key to access recent FX data
-	AvailableCurrencies      []string // currencies used throughout the site for salary compensation (post a job, salary filter FX, etc)
-	AvailableSalaryBands     []int    // salary upper limits used in search to filter job by minimum salary
-	SiteName                 string   // Job site name
-	SiteJobCategory          string   // Job site category
-	SiteHost                 string   // Job site hostname
-	SiteGithub               string   // job site github project url (username+repository name)
-	SiteTwitter              string   // job site twitter account username
-	SiteLinkedin             string
-	SiteYoutube              string
-	SiteTelegramChannel      string
-	PrimaryColor             string
-	SecondaryColor           string
-	SiteLogoImageID          string
-	PlanID1Price             int // price in cents
-	PlanID2Price             int // price in cents
-	PlanID3Price             int // price in cents
-	DevDirectoryPlanID1Price int // price in cents
-	DevDirectoryPlanID2Price int // price in cents
-	DevDirectoryPlanID3Price int // price in cents
-	DevelopersBannerLink     string
-	DevelopersBannerText     string
-	URLProtocol              string
+	HttpPort                  string
+	HttpsPort                 string
+	DatabaseUser              string
+	DatabasePassword          string
+	DatabaseHost              string
+	DatabasePort              string
+	DatabaseName              string
+	DatabaseSSLMode           string
+	StripeKey                 string // stripe secret API Key
+	StripeEndpointSecret      string // stripe endpoint webhook secret token
+	StripePublishableKey      string // stripe publishable API key
+	EmailAPIKey               string // sparkpost email API Key
+	Email2APIKey              string // sparkpost email API Key
+	AdminEmail                string // used to log on to the management dashboard
+	SupportEmail              string // displayed on the site for support queries
+	NoReplyEmail              string // used for transactional emails
+	SessionKey                []byte
+	JwtSigningKey             []byte
+	Env                       string // either prod or dev, will disable https and few other bits
+	JobsPerPage               int    // configures how many jobs are shown per page result
+	DevelopersPerPage         int    // configures how many dev profiles are shown per page result
+	CompaniesPerPage          int    // configures how many companies are shown per page result
+	TwitterJobsToPost         int    // max number of jobs to post each day
+	TwitterAccessToken        string
+	TwitterAccessTokenSecret  string
+	TwitterClientKey          string
+	TwitterClientSecret       string
+	NewsletterJobsToSend      int
+	CloudflareAPIToken        string
+	CloudflareZoneTag         string
+	CloudflareAPIEndpoint     string
+	MachineToken              string
+	TelegramAPIToken          string   // Telegram API Token used to integrate with site's Telegram channel
+	TelegramChannelID         int64    // Telegram Channel ID used to integrate with site's Telegram channel
+	FXAPIKey                  string   // FX rate api API Key to access recent FX data
+	AvailableCurrencies       []string // currencies used throughout the site for salary compensation (post a job, salary filter FX, etc)
+	AvailableSalaryBands      []int    // salary upper limits used in search to filter job by minimum salary
+	SiteName                  string   // Job site name
+	SiteJobCategory           string   // Job site category
+	SiteHost                  string   // Job site hostname
+	SiteGithub                string   // job site github project url (username+repository name)
+	SiteTwitter               string   // job site twitter account username
+	SiteLinkedin              string
+	SiteYoutube               string
+	SiteTelegramChannel       string
+	PrimaryColor              string
+	SecondaryColor            string
+	SiteLogoImageID           string
+	PlanID1Price              int // price in cents
+	PlanID2Price              int // price in cents
+	PlanID3Price              int // price in cents
+	DevDirectoryPlanID1Price  int // price in cents
+	DevDirectoryPlanID2Price  int // price in cents
+	DevDirectoryPlanID3Price  int // price in cents
+	DevelopersBannerLink      string
+	DevelopersBannerText      string
+	URLProtocol               string
+	FirebaseCredentialFile    string
+	FirebaseApiKey            string
+	FirebaseAuthDomain        string
+	FirebaseProjectId         string
+	FirebaseStorageBucket     string
+	FirebaseMessagingSenderId string
+	FirebaseAppId             string
+	FirebaseMeasurementId     string
 }
 
 func LoadConfig(envFile string) (Config, error) {
@@ -77,10 +85,12 @@ func LoadConfig(envFile string) (Config, error) {
 			return Config{}, err
 		}
 	}
-	port := os.Getenv("PORT")
-	if port == "" {
-		return Config{}, fmt.Errorf("PORT cannot be empty")
+	httpPort := os.Getenv("HTTP_PORT")
+	if httpPort == "" {
+		return Config{}, fmt.Errorf("HTTP_PORT cannot be empty")
 	}
+	httpsPort := os.Getenv("HTTPS_PORT")
+
 	databaseUser := os.Getenv("DATABASE_USER")
 	if databaseUser == "" {
 		return Config{}, fmt.Errorf("DATABASE_USER cannot be empty")
@@ -135,7 +145,7 @@ func LoadConfig(envFile string) (Config, error) {
 	}
 	sessionKeyBytes, err := base64.StdEncoding.DecodeString(sessionKeyString)
 	if err != nil {
-		return Config{}, errors.Wrapf(err, "unable to decode session key to bytes")
+		return Config{}, fmt.Errorf("unable to decode session key to bytes. %w", err)
 	}
 	jwtSigningKey := os.Getenv("JWT_SIGNING_KEY")
 	if jwtSigningKey == "" {
@@ -143,7 +153,7 @@ func LoadConfig(envFile string) (Config, error) {
 	}
 	jwtSigningKeyBytes, err := base64.StdEncoding.DecodeString(jwtSigningKey)
 	if err != nil {
-		return Config{}, errors.Wrapf(err, "unable to decode session key to bytes")
+		return Config{}, fmt.Errorf("unable to decode session key to bytes. %w", err)
 	}
 	adminEmail := os.Getenv("ADMIN_EMAIL")
 	if adminEmail == "" {
@@ -215,7 +225,7 @@ func LoadConfig(envFile string) (Config, error) {
 	}
 	telegramChannelID, err := strconv.Atoi(telegramChannelIDStr)
 	if err != nil {
-		return Config{}, errors.Wrap(err, "unable to convert telegram channel id to int")
+		return Config{}, fmt.Errorf("unable to convert telegram channel id to int. %w", err)
 	}
 	fxAPIKey := os.Getenv("FX_API_KEY")
 	if fxAPIKey == "" {
@@ -294,6 +304,38 @@ func LoadConfig(envFile string) (Config, error) {
 	if devDirectoryPlanID3PriceStr == "" {
 		return Config{}, fmt.Errorf("DEV_DIRECTORY_PLAN_ID_3_PRICE cannot be empty")
 	}
+	// firebaseFileLocation := os.Getenv("FIREBASE_CONFIG_FILE")
+	// if firebaseFileLocation == "" {
+	// 	return Config{}, fmt.Errorf("FIREBASE_CONFIG_FILE cannot be empty")
+	// }
+	// firebaseApiKey := os.Getenv("FIREBASE_API_KEY")
+	// if firebaseApiKey == "" {
+	// 	return Config{}, fmt.Errorf("FIREBASE_API_KEY cannot be empty")
+	// }
+	// firebaseAuthDomain := os.Getenv("FIREBASE_AUTH_DOMAIN")
+	// if firebaseAuthDomain == "" {
+	// 	return Config{}, fmt.Errorf("FIREBASE_AUTH_DOMAIN cannot be empty")
+	// }
+	// firebaseProjectId := os.Getenv("FIREBASE_PROJECT_ID")
+	// if firebaseProjectId == "" {
+	// 	return Config{}, fmt.Errorf("FIREBASE_PROJECT_ID cannot be empty")
+	// }
+	// firebaseStorageBucket := os.Getenv("FIREBASE_STORAGE_BUCKET")
+	// if firebaseStorageBucket == "" {
+	// 	return Config{}, fmt.Errorf("FIREBASE_STORAGE_BUCKET cannot be empty")
+	// }
+	// firebaseMessagingSenderId := os.Getenv("FIREBASE_MESSAGING_SENDER_ID")
+	// if firebaseMessagingSenderId == "" {
+	// 	return Config{}, fmt.Errorf("FIREBASE_MESSAGING_SENDER_ID cannot be empty")
+	// }
+	// firebaseAppId := os.Getenv("FIREBASE_APP_ID")
+	// if firebaseAppId == "" {
+	// 	return Config{}, fmt.Errorf("FIREBASE_APP_ID cannot be empty")
+	// }
+	// firebaseMeasurementId := os.Getenv("FIREBASE_MEASUREMENT_ID")
+	// if firebaseMeasurementId == "" {
+	// 	return Config{}, fmt.Errorf("FIREBASE_MEASUREMENT_ID cannot be empty")
+	// }
 	devDirectoryPlanID3Price, err := strconv.Atoi(devDirectoryPlanID3PriceStr)
 	if err != nil {
 		return Config{}, fmt.Errorf("could not convert ascii to int: %v", err)
@@ -306,7 +348,8 @@ func LoadConfig(envFile string) (Config, error) {
 	}
 
 	return Config{
-		Port:                     port,
+		HttpPort:                 httpPort,
+		HttpsPort:                httpsPort,
 		DatabaseUser:             databaseUser,
 		DatabasePassword:         databasePassword,
 		DatabaseHost:             databaseHost,
@@ -362,5 +405,13 @@ func LoadConfig(envFile string) (Config, error) {
 		DevelopersBannerLink:     developersBannerLink,
 		DevelopersBannerText:     developersBannerText,
 		URLProtocol:              urlProtocol,
+		// FirebaseCredentialFile:    firebaseFileLocation,
+		// FirebaseApiKey:            firebaseApiKey,
+		// FirebaseAuthDomain:        firebaseAuthDomain,
+		// FirebaseProjectId:         firebaseProjectId,
+		// FirebaseStorageBucket:     firebaseStorageBucket,
+		// FirebaseMessagingSenderId: firebaseMessagingSenderId,
+		// FirebaseAppId:             firebaseAppId,
+		// FirebaseMeasurementId:     firebaseMeasurementId,
 	}, nil
 }
