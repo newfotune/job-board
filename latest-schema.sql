@@ -847,3 +847,9 @@ CREATE TABLE public.developer_directory_purchase_event (
 );
 
 ALTER TABLE public.recruiter_profile ADD COLUMN plan_expired_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW();
+ALTER TABLE ONLY public.users ADD COLUMN email_verified boolean DEFAULT false
+ALTER TABLE ONLY public.users ADD COLUMN access_token VARCHAR
+ALTER TABLE ONLY public.users ADD COLUMN expiration_time TIMESTAMP
+ALTER TABLE ONLY public.users ADD COLUMN created_at TIMESTAMP DEFAULT NOW();
+ALTER TABLE ONLY public.users ALTER COLUMN id TYPE VARCHAR;
+ALTER TABLE ONLY public.users ADD COLUMN refresh_token VARCHAR;
