@@ -1,6 +1,7 @@
 package template
 
 import (
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -9,15 +10,17 @@ import (
 
 	customtemplate "github.com/alecthomas/template"
 	humanize "github.com/dustin/go-humanize"
+	"github.com/fsnotify/fsnotify"
 	blackfriday "gopkg.in/russross/blackfriday.v2"
 )
 
 type Template struct {
 	templates *customtemplate.Template
 	funcMap   stdtemplate.FuncMap
+	watcher   *fsnotify.Watcher
 }
 
-func NewTemplate() *Template {
+func NewTemplate(env string) *Template {
 	funcMap := customtemplate.FuncMap{
 		"add": func(a, b int) int {
 			return a + b
@@ -53,7 +56,7 @@ func NewTemplate() *Template {
 			return strings.ReplaceAll(s, "-", " ")
 		},
 		"mul": func(a int, b int) int {
-			return a*b
+			return a * b
 		},
 		"currencysymbol": func(currency string) string {
 			symbols := map[string]string{
@@ -85,9 +88,53 @@ func NewTemplate() *Template {
 			return symbol
 		},
 	}
-	return &Template{
-		templates: customtemplate.Must(customtemplate.New("stdtmpl").Funcs(funcMap).ParseGlob("static/views/*.html")),
+
+	t := &Template{
+		templates: createTemplateFromGlob(funcMap, "static/views/*.html"),
+		funcMap:   stdtemplate.FuncMap(funcMap),
 	}
+
+	if env != "dev" {
+		return t
+	}
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		panic(err)
+	}
+	// Purposefully not closing watcher. We want to watch for the duration of the programs life.
+
+	// Start listening for events.
+	go func() {
+		for {
+			select {
+			case event, ok := <-watcher.Events:
+				if !ok {
+					return
+				}
+				if event.Has(fsnotify.Write) {
+					log.Printf("modified file %s, reloading templates", event.Name)
+					t.templates = createTemplateFromGlob(funcMap, "static/views/*.html")
+				}
+			case err, ok := <-watcher.Errors:
+				if !ok {
+					return
+				}
+				log.Println("error from file watcher:", err)
+			}
+		}
+	}()
+
+	if err = watcher.Add("static/views"); err != nil {
+		panic(err)
+	}
+
+	t.watcher = watcher
+	return t
+}
+
+func createTemplateFromGlob(funcMap customtemplate.FuncMap, glob string) *customtemplate.Template {
+	return customtemplate.Must(customtemplate.New("stdtmpl").Funcs(funcMap).ParseGlob(glob))
 }
 
 func (t *Template) JSEscapeString(s string) string {
