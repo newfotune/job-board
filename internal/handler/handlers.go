@@ -67,6 +67,22 @@ type tokenSaver interface {
 	UpdateAccessToken(userId, accessToken string) error
 }
 
+func GetAutologinPageHandler(svr server.Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		email := r.URL.Query().Get("email")
+		svr.Render(r, w, http.StatusOK, "auto-login.html", map[string]interface{}{
+			"DefaultEmail":              email,
+			"FirebaseAPIKey":            svr.GetConfig().FirebaseApiKey,
+			"FirebaseAuthDomain":        svr.GetConfig().FirebaseAuthDomain,
+			"FirebaseProjectId":         svr.GetConfig().FirebaseProjectId,
+			"FirebaseStorageBucket":     svr.GetConfig().FirebaseStorageBucket,
+			"FirebaseMessagingSenderId": svr.GetConfig().FirebaseMessagingSenderId,
+			"FirebaseAppId":             svr.GetConfig().FirebaseAppId,
+			"FirebaseMeasurementId":     svr.GetConfig().FirebaseMeasurementId,
+		})
+	}
+}
+
 func GetAuthPageHandler(svr server.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		profile, _ := middleware.GetUserFromJWT(r, svr.SessionStore, svr.GetJWTSigningKey())
@@ -1896,57 +1912,71 @@ func CompaniesForLocationHandler(svr server.Server, companyRepo *company.Reposit
 	}
 }
 
-func IndexPageHandler(svr server.Server, jobRepo *job.Repository) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		location := r.URL.Query().Get("l")
-		tag := r.URL.Query().Get("t")
-		page := r.URL.Query().Get("p")
+func IndexPageHandler(svr server.Server, jobRepo *job.Repository, userRepo *user.Repository) http.HandlerFunc {
+	return middleware.InjectAuthTokenMiddleware(
+		svr.SessionStore,
+		svr.GetAuthClient(),
+		func(w http.ResponseWriter, r *http.Request) {
+			location := r.URL.Query().Get("l")
+			tag := r.URL.Query().Get("t")
+			page := r.URL.Query().Get("p")
 
-		var dst string
-		if location != "" && tag != "" {
-			dst = fmt.Sprintf("/%s-%s-Jobs-In-%s", strings.Title(svr.GetConfig().SiteJobCategory), tag, location)
-		} else if location != "" {
-			dst = fmt.Sprintf("/%s-Jobs-In-%s", strings.Title(svr.GetConfig().SiteJobCategory), location)
-		} else if tag != "" {
-			dst = fmt.Sprintf("/%s-%s-Jobs", strings.Title(svr.GetConfig().SiteJobCategory), tag)
-		}
-		if dst != "" && page != "" {
-			dst += fmt.Sprintf("?p=%s", page)
-		}
-		if dst != "" {
-			svr.Redirect(w, r, http.StatusMovedPermanently, dst)
-			return
-		}
-		vars := mux.Vars(r)
-		salary := vars["salary"]
-		currency := vars["currency"]
-		location = vars["location"]
-		tag = vars["tag"]
-		var validSalary bool
-		for _, band := range svr.GetConfig().AvailableSalaryBands {
-			if fmt.Sprintf("%d", band) == salary {
-				validSalary = true
-				break
+			var dst string
+			if location != "" && tag != "" {
+				dst = fmt.Sprintf("/%s-%s-Jobs-In-%s", strings.Title(svr.GetConfig().SiteJobCategory), tag, location)
+			} else if location != "" {
+				dst = fmt.Sprintf("/%s-Jobs-In-%s", strings.Title(svr.GetConfig().SiteJobCategory), location)
+			} else if tag != "" {
+				dst = fmt.Sprintf("/%s-%s-Jobs", strings.Title(svr.GetConfig().SiteJobCategory), tag)
 			}
-		}
-		dst = "/"
-		if location != "" && tag != "" {
-			dst = fmt.Sprintf("/%s-%s-Jobs-In-%s", strings.Title(svr.GetConfig().SiteJobCategory), tag, location)
-		} else if location != "" {
-			dst = fmt.Sprintf("/%s-Jobs-In-%s", strings.Title(svr.GetConfig().SiteJobCategory), location)
-		} else if tag != "" {
-			dst = fmt.Sprintf("/%s-%s-Jobs", strings.Title(svr.GetConfig().SiteJobCategory), tag)
-		}
-		if page != "" {
-			dst += fmt.Sprintf("?p=%s", page)
-		}
-		if (salary != "" && !validSalary) || (currency != "" && currency != "USD") {
-			svr.Redirect(w, r, http.StatusMovedPermanently, dst)
-			return
-		}
+			if dst != "" && page != "" {
+				dst += fmt.Sprintf("?p=%s", page)
+			}
+			if dst != "" {
+				svr.Redirect(w, r, http.StatusMovedPermanently, dst)
+				return
+			}
+			vars := mux.Vars(r)
+			salary := vars["salary"]
+			currency := vars["currency"]
+			location = vars["location"]
+			tag = vars["tag"]
+			var validSalary bool
+			for _, band := range svr.GetConfig().AvailableSalaryBands {
+				if fmt.Sprintf("%d", band) == salary {
+					validSalary = true
+					break
+				}
+			}
+			dst = "/"
+			if location != "" && tag != "" {
+				dst = fmt.Sprintf("/%s-%s-Jobs-In-%s", strings.Title(svr.GetConfig().SiteJobCategory), tag, location)
+			} else if location != "" {
+				dst = fmt.Sprintf("/%s-Jobs-In-%s", strings.Title(svr.GetConfig().SiteJobCategory), location)
+			} else if tag != "" {
+				dst = fmt.Sprintf("/%s-%s-Jobs", strings.Title(svr.GetConfig().SiteJobCategory), tag)
+			}
+			if page != "" {
+				dst += fmt.Sprintf("?p=%s", page)
+			}
+			if (salary != "" && !validSalary) || (currency != "" && currency != "USD") {
+				svr.Redirect(w, r, http.StatusMovedPermanently, dst)
+				return
+			}
 
-		svr.RenderPageForLocationAndTag(w, r, jobRepo, "", "", page, salary, currency, "landing.html")
-	}
+			data := map[string]interface{}{}
+			tk, ok := r.Context().Value("authToken").(*auth.Token)
+			if ok {
+				profile, err := userRepo.GetUser(tk.UID)
+				if err != nil {
+					svr.Log(err, "failed to get user from user repo")
+					svr.JSON(w, http.StatusInternalServerError, "unauthorized access")
+					return
+				}
+				data["LoggedUser"] = profile
+			}
+			svr.RenderPageForLocationAndTag(w, r, jobRepo, data, "", "", page, salary, currency, "landing.html")
+		})
 }
 
 func PermanentRedirectHandler(svr server.Server, dst string) http.HandlerFunc {
@@ -2355,7 +2385,8 @@ func LandingPageForLocationHandler(svr server.Server, jobRepo *job.Repository, l
 		salary := vars["salary"]
 		currency := vars["currency"]
 		page := r.URL.Query().Get("p")
-		svr.RenderPageForLocationAndTag(w, r, jobRepo, location, "", page, salary, currency, "landing.html")
+		data := map[string]interface{}{} //{"LoggedUser": profile}
+		svr.RenderPageForLocationAndTag(w, r, jobRepo, data, location, "", page, salary, currency, "landing.html")
 	}
 }
 
@@ -2366,7 +2397,8 @@ func LandingPageForLocationAndSkillPlaceholderHandler(svr server.Server, jobRepo
 		currency := vars["currency"]
 		skill := strings.ReplaceAll(vars["skill"], "-", " ")
 		page := r.URL.Query().Get("p")
-		svr.RenderPageForLocationAndTag(w, r, jobRepo, location, skill, page, salary, currency, "landing.html")
+		data := map[string]interface{}{} //{"LoggedUser": profile}
+		svr.RenderPageForLocationAndTag(w, r, jobRepo, data, location, skill, page, salary, currency, "landing.html")
 	}
 }
 
@@ -2377,7 +2409,8 @@ func LandingPageForLocationPlaceholderHandler(svr server.Server, jobRepo *job.Re
 		currency := vars["currency"]
 		loc := strings.ReplaceAll(vars["location"], "-", " ")
 		page := r.URL.Query().Get("p")
-		svr.RenderPageForLocationAndTag(w, r, jobRepo, loc, "", page, salary, currency, "landing.html")
+		data := map[string]interface{}{} //{"LoggedUser": profile}
+		svr.RenderPageForLocationAndTag(w, r, jobRepo, data, loc, "", page, salary, currency, "landing.html")
 	}
 }
 
@@ -2388,7 +2421,8 @@ func LandingPageForSkillPlaceholderHandler(svr server.Server, jobRepo *job.Repos
 		currency := vars["currency"]
 		skill := strings.ReplaceAll(vars["skill"], "-", " ")
 		page := r.URL.Query().Get("p")
-		svr.RenderPageForLocationAndTag(w, r, jobRepo, "", skill, page, salary, currency, "landing.html")
+		data := map[string]interface{}{} //{"LoggedUser": profile}
+		svr.RenderPageForLocationAndTag(w, r, jobRepo, data, "", skill, page, salary, currency, "landing.html")
 	}
 }
 
@@ -2400,7 +2434,8 @@ func LandingPageForSkillAndLocationPlaceholderHandler(svr server.Server, jobRepo
 		loc := strings.ReplaceAll(vars["location"], "-", " ")
 		skill := strings.ReplaceAll(vars["skill"], "-", " ")
 		page := r.URL.Query().Get("p")
-		svr.RenderPageForLocationAndTag(w, r, jobRepo, loc, skill, page, salary, currency, "landing.html")
+		data := map[string]interface{}{} //{"LoggedUser": profile}
+		svr.RenderPageForLocationAndTag(w, r, jobRepo, data, loc, skill, page, salary, currency, "landing.html")
 	}
 }
 
@@ -2692,13 +2727,15 @@ func SalaryLandingPageLocationHandler(svr server.Server, jobRepo *job.Repository
 
 func ViewNewsletterPageHandler(svr server.Server, jobRepo *job.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		svr.RenderPageForLocationAndTag(w, r, jobRepo, "", "", "", "", "", "newsletter.html")
+		data := map[string]interface{}{} //{"LoggedUser": profile}
+		svr.RenderPageForLocationAndTag(w, r, jobRepo, data, "", "", "", "", "", "newsletter.html")
 	}
 }
 
 func ViewCommunityNewsletterPageHandler(svr server.Server, jobRepo *job.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		svr.RenderPageForLocationAndTag(w, r, jobRepo, "", "", "", "", "", "news.html")
+		data := map[string]interface{}{} //{"LoggedUser": profile}
+		svr.RenderPageForLocationAndTag(w, r, jobRepo, data, "", "", "", "", "", "news.html")
 	}
 }
 
@@ -2715,7 +2752,8 @@ func DisableDirListing(next http.Handler) http.Handler {
 
 func ViewSupportPageHandler(svr server.Server, jobRepo *job.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		svr.RenderPageForLocationAndTag(w, r, jobRepo, "", "", "", "", "", "support.html")
+		data := map[string]interface{}{} //{"LoggedUser": profile}
+		svr.RenderPageForLocationAndTag(w, r, jobRepo, data, "", "", "", "", "", "support.html")
 	}
 }
 
@@ -4105,7 +4143,7 @@ func GetUserBlogPostsHandler(svr server.Server, blogPostRepo *blog.Repository) h
 }
 
 func ProfileHomepageHandler(svr server.Server, devRepo *developer.Repository, recRepo *recruiter.Repository, userRepo *user.Repository) http.HandlerFunc {
-	return middleware.UserAuthenticatedMiddleware(
+	return middleware.UserAuthenticatedPageMiddleware(
 		svr.SessionStore,
 		svr.GetAuthClient(),
 		func(w http.ResponseWriter, r *http.Request) {

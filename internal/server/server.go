@@ -69,6 +69,7 @@ func NewServer(
 	t *template.Template,
 	emailClient email.Client,
 	sessionStore *sessions.CookieStore,
+
 ) Server {
 	creds := option.WithCredentialsFile(cfg.FirebaseCredentialFile)
 	app, err := firebase.NewApp(context.Background(), nil, creds)
@@ -289,7 +290,7 @@ func (s Server) RenderSalaryForLocation(w http.ResponseWriter, r *http.Request, 
 	})
 }
 
-func (s Server) RenderPageForLocationAndTag(w http.ResponseWriter, r *http.Request, jobRepo *job.Repository, location, tag, page, salary, currency, htmlView string) {
+func (s Server) RenderPageForLocationAndTag(w http.ResponseWriter, r *http.Request, jobRepo *job.Repository, data map[string]interface{}, location, tag, page, salary, currency, htmlView string) {
 	var validSalary bool
 	for _, band := range s.GetConfig().AvailableSalaryBands {
 		if fmt.Sprintf("%d", band) == salary {
@@ -502,45 +503,47 @@ func (s Server) RenderPageForLocationAndTag(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		s.Log(err, "database.CountEmailSubscribers")
 	}
+	if data == nil {
+		data = make(map[string]interface{})
+	}
+	data["Jobs"] = jobsForPage
+	data["PinnedJobs"] = pinnedJobs
+	data["JobsMinusOne"] = len(jobsForPage) - 1
+	data["LocationFilter"] = strings.Title(location)
+	data["LocationFilterWithCountry"] = locationWithCountry
+	data["LocationFilterURLEnc"] = url.PathEscape(strings.Title(location))
+	data["TagFilter"] = tag
+	data["SalaryFilter"] = salaryInt
+	data["CurrencyFilter"] = currency
+	data["AvailableCurrencies"] = s.GetConfig().AvailableCurrencies
+	data["AvailableSalaryBands"] = s.GetConfig().AvailableSalaryBands
+	data["TagFilterURLEnc"] = url.PathEscape(tag)
+	data["CurrentPage"] = pageID
+	data["ShowPage"] = showPage
+	data["PageSize"] = s.cfg.JobsPerPage
+	data["PageIndexes"] = pages
+	data["TotalJobCount"] = totalJobCount
+	data["TextJobCount"] = textifyJobCount(totalJobCount)
+	data["TextCompanies"] = textifyCompanies(location, pinnedJobs, jobsForPage)
+	data["TextJobTitles"] = textifyJobTitles(jobsForPage)
+	data["LastJobPostedAt"] = lastJobPosted.Format(time.RFC3339)
+	data["LastJobPostedAtHumanized"] = humanize.Time(lastJobPosted)
+	data["HasSalaryInfo"] = maxSalary > 0
+	data["MinSalary"] = fmt.Sprintf("%s%s", locFromDB.Currency, humanize.Comma(minSalary))
+	data["MaxSalary"] = fmt.Sprintf("%s%s", locFromDB.Currency, humanize.Comma(maxSalary))
+	data["LocationFromDB"] = locFromDB.Name
+	data["CountryFromDB"] = locFromDB.Country
+	data["RegionFromDB"] = locFromDB.Region
+	data["PopulationFromDB"] = locFromDB.Population
+	data["LocationEmojiFromDB"] = locFromDB.Emoji
+	data["RelatedLocations"] = relatedLocations
+	data["ComplementaryRemote"] = complementaryRemote
+	data["MonthAndYear"] = time.Now().UTC().Format("January 2006")
+	data["NewJobsLastWeek"] = newJobsLastWeek
+	data["NewJobsLastMonth"] = newJobsLastMonth
+	data["EmailSubscribersCount"] = humanize.Comma(int64(emailSubscribersCount))
 
-	s.Render(r, w, http.StatusOK, htmlView, map[string]interface{}{
-		"Jobs":                      jobsForPage,
-		"PinnedJobs":                pinnedJobs,
-		"JobsMinusOne":              len(jobsForPage) - 1,
-		"LocationFilter":            strings.Title(location),
-		"LocationFilterWithCountry": locationWithCountry,
-		"LocationFilterURLEnc":      url.PathEscape(strings.Title(location)),
-		"TagFilter":                 tag,
-		"SalaryFilter":              salaryInt,
-		"CurrencyFilter":            currency,
-		"AvailableCurrencies":       s.GetConfig().AvailableCurrencies,
-		"AvailableSalaryBands":      s.GetConfig().AvailableSalaryBands,
-		"TagFilterURLEnc":           url.PathEscape(tag),
-		"CurrentPage":               pageID,
-		"ShowPage":                  showPage,
-		"PageSize":                  s.cfg.JobsPerPage,
-		"PageIndexes":               pages,
-		"TotalJobCount":             totalJobCount,
-		"TextJobCount":              textifyJobCount(totalJobCount),
-		"TextCompanies":             textifyCompanies(location, pinnedJobs, jobsForPage),
-		"TextJobTitles":             textifyJobTitles(jobsForPage),
-		"LastJobPostedAt":           lastJobPosted.Format(time.RFC3339),
-		"LastJobPostedAtHumanized":  humanize.Time(lastJobPosted),
-		"HasSalaryInfo":             maxSalary > 0,
-		"MinSalary":                 fmt.Sprintf("%s%s", locFromDB.Currency, humanize.Comma(minSalary)),
-		"MaxSalary":                 fmt.Sprintf("%s%s", locFromDB.Currency, humanize.Comma(maxSalary)),
-		"LocationFromDB":            locFromDB.Name,
-		"CountryFromDB":             locFromDB.Country,
-		"RegionFromDB":              locFromDB.Region,
-		"PopulationFromDB":          locFromDB.Population,
-		"LocationEmojiFromDB":       locFromDB.Emoji,
-		"RelatedLocations":          relatedLocations,
-		"ComplementaryRemote":       complementaryRemote,
-		"MonthAndYear":              time.Now().UTC().Format("January 2006"),
-		"NewJobsLastWeek":           newJobsLastWeek,
-		"NewJobsLastMonth":          newJobsLastMonth,
-		"EmailSubscribersCount":     humanize.Comma(int64(emailSubscribersCount)),
-	})
+	s.Render(r, w, http.StatusOK, htmlView, data)
 }
 
 func textifyJobCount(n int) string {

@@ -17,6 +17,12 @@ import (
 	"github.com/rs/zerolog"
 )
 
+var (
+	ErrNoAuthSession           = errors.New("no authentication session")
+	ErrNoAuthCookie            = errors.New("no authentication cookie")
+	ErrTokenVerificationFailed = errors.New("token verification failed")
+)
+
 func HTTPSMiddleware(next http.Handler, env string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if env != "dev" && r.Header.Get("X-Forwarded-Proto") != "https" {
@@ -121,28 +127,78 @@ func MachineAuthenticatedMiddleware(machineToken string, next http.HandlerFunc) 
 	})
 }
 
+func authenticateFromCookie(sessionStore *sessions.CookieStore, authClient *auth.Client, r *http.Request) (*auth.Token, error) {
+	sess, err := sessionStore.Get(r, "____gc")
+	if err != nil {
+		return nil, ErrNoAuthSession
+	}
+
+	if sess.IsNew {
+		fmt.Println("Session is new")
+	}
+
+	tk, ok := sess.Values["jwt"].(string)
+	if !ok {
+		return nil, ErrNoAuthCookie
+	}
+
+	authToken, err := authClient.VerifyIDToken(context.Background(), tk)
+	if err != nil {
+		return nil, ErrTokenVerificationFailed
+	}
+
+	return authToken, nil
+}
+
 func UserAuthenticatedMiddleware(sessionStore *sessions.CookieStore, authClient *auth.Client, next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		sess, err := sessionStore.Get(r, "____gc")
+		tk, err := authenticateFromCookie(sessionStore, authClient, r)
 		if err != nil {
-			http.Redirect(w, r, "/auth", http.StatusUnauthorized)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		tk, ok := sess.Values["jwt"].(string)
-		if !ok {
-			http.Redirect(w, r, "/auth", http.StatusUnauthorized)
-			return
-		}
-
-		authToken, err := authClient.VerifyIDToken(context.Background(), tk)
-		if err != nil {
-			fmt.Println(err)
-			http.Redirect(w, r, "/auth", http.StatusUnauthorized)
-			return
-		}
 		//TODO: Use predefined context key.
-		r = r.WithContext(context.WithValue(r.Context(), "authToken", authToken))
+		r = r.WithContext(context.WithValue(r.Context(), "authToken", tk))
+		next(w, r)
+	})
+}
+
+func UserAuthenticatedPageMiddleware(sessionStore *sessions.CookieStore, authClient *auth.Client, next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tk, err := authenticateFromCookie(sessionStore, authClient, r)
+		if err == ErrNoAuthSession || err == ErrNoAuthCookie {
+			fmt.Println("redirecting to auth")
+			http.Redirect(w, r, "/auth", http.StatusUnauthorized)
+			return
+		}
+		directTo := r.URL.Path
+		if directTo == "" {
+			directTo = "/profile/home"
+		}
+
+		if err == ErrTokenVerificationFailed {
+			// The token exists but has expired. Serve the auto login page that attempts to re-login and redirect.
+			http.Redirect(w, r, fmt.Sprintf("/autologin?directto=%s", directTo), http.StatusSeeOther)
+			return
+		}
+		r = r.WithContext(context.WithValue(r.Context(), "authToken", tk))
+		next(w, r)
+	})
+}
+
+// For page
+func InjectAuthTokenMiddleware(sessionStore *sessions.CookieStore, authClient *auth.Client, next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tk, err := authenticateFromCookie(sessionStore, authClient, r)
+		directTo := r.URL.Path
+		if err == ErrTokenVerificationFailed {
+			http.Redirect(w, r, fmt.Sprintf("/autologin?directto=%s", directTo), http.StatusSeeOther)
+			return
+		}
+		if err == nil {
+			r = r.WithContext(context.WithValue(r.Context(), "authToken", tk))
+		}
 		next(w, r)
 	})
 }

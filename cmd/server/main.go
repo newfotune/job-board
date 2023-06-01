@@ -93,12 +93,13 @@ func main() {
 	svr.RegisterRoute("/.well-known/security.txt", handler.WellKnownSecurityHandler(svr, securityTxtContent), []string{"GET"})
 
 	svr.RegisterPathPrefix("/s/", http.StripPrefix("/s/", http.FileServer(http.Dir("./static/assets"))), []string{"GET"})
+	svr.RegisterPathPrefix("/scripts/", http.StripPrefix("/scripts/", http.FileServer(http.Dir("./static/scripts"))), []string{"GET"})
 
 	svr.RegisterRoute("/about", handler.AboutPageHandler(svr), []string{"GET"})
 	svr.RegisterRoute("/privacy-policy", handler.PrivacyPolicyPageHandler(svr), []string{"GET"})
 	svr.RegisterRoute("/terms-of-service", handler.TermsOfServicePageHandler(svr), []string{"GET"})
 
-	svr.RegisterRoute("/", handler.IndexPageHandler(svr, jobRepo), []string{"GET"})
+	svr.RegisterRoute("/", handler.IndexPageHandler(svr, jobRepo, userRepo), []string{"GET"})
 	svr.RegisterRoute(
 		fmt.Sprintf("/Companies-Using-%s", strings.Title(cfg.SiteJobCategory)),
 		handler.CompaniesHandler(svr, companyRepo, jobRepo, devRepo),
@@ -264,6 +265,7 @@ func main() {
 
 	// sign on page
 	svr.RegisterRoute("/auth", handler.GetAuthPageHandler(svr), []string{"GET"})
+	svr.RegisterRoute("/autologin", handler.GetAutologinPageHandler(svr), []string{"GET"})
 
 	// sign on email link
 	svr.RegisterRoute("/x/auth/link", handler.RequestTokenSignOn(svr, userRepo), []string{"POST"})
@@ -341,7 +343,7 @@ func main() {
 	// Salary Only Landing Page
 	svr.RegisterRoute(
 		fmt.Sprintf("/%s-Jobs-Paying-{salary}-{currency}-year", strings.Title(cfg.SiteJobCategory)),
-		handler.IndexPageHandler(svr, jobRepo),
+		handler.IndexPageHandler(svr, jobRepo, userRepo),
 		[]string{"GET"},
 	)
 

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<script type='module'>
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics.js";
+    import { getAuth, createUserWithEmailAndPassword, sendSignInLinkToEmail } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    // TODO: Add SDKs for Firebase products that you want to use
+    // https://firebase.google.com/docs/web/setup#available-libraries
+
+    // Your web app's Firebase configuration
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+    const firebaseConfig = {
+        apiKey: "AIzaSyA22SxY5V3MExVsAB6m8Tky6-gM2L54sUs",
+        authDomain: "getdentaljob-prod.firebaseapp.com",
+        projectId: "getdentaljob-prod",
+        storageBucket: "getdentaljob-prod.appspot.com",
+        messagingSenderId: "119037252504",
+        appId: "1:119037252504:web:c9f8ca012e5822017851ed",
+        measurementId: "G-NP9QEH8J11"
+    };
+
+    function setCookie(c_name, value, expiredays) {
+        var exdate = new Date();
+        exdate.setDate(exdate.getDate() + expiredays);
+        document.cookie = c_name + "=" + escape(value) +
+            ((expiredays == null) ? "" : ";expires=" + exdate.toGMTString()) +
+            ";path=/"
+    }
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const auth = getAuth()
+
+    var post = function (url, body, cb) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', url, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(JSON.stringify(body));
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4) {
+                cb(xhr.status === 200, xhr.response);
+            }
+        }
+    };
+
+    window.onload = (event) => {
+        auth.onAuthStateChanged((user) => {
+            if (!user) {
+                window.location = '/auth'
+                return
+            }
+
+            // User is signed in.
+            console.log('User is signed in', user)
+            user.getIdToken(/* forceRefresh */ false)
+                .then((idToken) => {
+                    const payload = {
+                        uid: user.uid, // string
+                        email: user.email, // string
+                        email_verified: user.emailVerified, // bool
+                        access_token: user.stsTokenManager.accessToken, // string
+                        expiration_time: user.stsTokenManager.expirationTime, // unix seconds, number
+                        created_at: parseInt(user.metadata.createdAt), // string 
+                    }
+                    console.log(payload)
+                    const queryString = window.location.search;
+                    const urlParams = new URLSearchParams(queryString);
+                    var to = urlParams.get('directto')
+
+                    if (!to) {
+                        to = '/profile/home'
+                    }
+
+                    post('/x/signin', payload, function (success) {
+                        if (success) {
+                            window.location.href = to
+                        } else {
+                            alert('error signing in, please contact help@gendentaljob.com')
+                        }
+                    })
+                }).catch(function (error) {
+                    // Handle error
+                    window.location = '/auth'
+                });
+
+        });
+    }
+
+</script>
+
+<body></body>
+
+</html>
